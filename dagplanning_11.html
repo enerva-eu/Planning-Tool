@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dagplanning</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F6F2;
+    --surface: #FFFFFF;
+    --border: #E4E2DA;
+    --border-strong: #C8C5BC;
+    --text: #1A1A18;
+    --text-2: #6B6860;
+    --text-3: #9B9890;
+    --accent: #2563EB;
+    --accent-light: #EFF6FF;
+    --accent-text: #1D4ED8;
+    --green: #059669;
+    --green-light: #ECFDF5;
+    --green-text: #047857;
+    --amber: #D97706;
+    --amber-light: #FFFBEB;
+    --red: #DC2626;
+    --red-light: #FEF2F2;
+    --google: #EA4335;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 16px; font-weight: 500; letter-spacing: -0.3px; }
+  .logo span { color: var(--accent); }
+  .week-nav { display: flex; align-items: center; gap: 8px; }
+  .week-nav button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    width: 28px; height: 28px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-2);
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .week-nav button:hover { background: var(--bg); border-color: var(--border-strong); }
+  .week-label { font-size: 13px; font-weight: 500; color: var(--text-2); min-width: 140px; text-align: center; }
+  .btn-today {
+    font-size: 12px; font-weight: 500;
+    background: none; border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px; cursor: pointer;
+    color: var(--text-2); transition: all .15s;
+  }
+  .btn-today:hover { background: var(--bg); }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .gcal-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 6px 12px;
+    cursor: pointer; transition: all .15s; color: var(--text);
+  }
+  .gcal-btn:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
+  .gcal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--google); }
+  .gcal-dot.connected { background: var(--green); }
+  .sync-btn {
+    font-size: 12px; font-weight: 500;
+    background: var(--accent); border: none;
+    border-radius: var(--radius-sm); padding: 6px 14px;
+    cursor: pointer; color: white; transition: all .15s;
+    display: none;
+  }
+  .sync-btn.visible { display: block; }
+  .sync-btn:hover { background: #1D4ED8; }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex; gap: 24px;
+    position: sticky;
+    top: 56px;
+    z-index: 30;
+  }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-label { font-size: 11px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 18px; font-weight: 500; font-family: 'DM Mono', monospace; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-divider { width: 1px; background: var(--border); }
+
+  /* ── CALENDAR ── */
+  .calendar-outer {
+    margin: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+  }
+  /* Fixed header: time-gutter label + 7 day cells */
+  .cal-head {
+    display: grid;
+    grid-template-columns: 52px repeat(7, 1fr);
+    border-bottom: 2px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .cal-head-gutter { background: var(--surface); }
+  .cal-head-day {
+    padding: 10px 8px 8px;
+    border-left: 1px solid var(--border);
+  }
+  .cal-head-day.today { background: var(--accent-light); }
+  .day-name { font-size: 10px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; }
+  .day-date { font-size: 18px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); line-height: 1.2; margin-top: 1px; }
+  .cal-head-day.today .day-date { color: var(--accent); }
+
+  /* Scrollable body */
+  .cal-body {
+    display: grid;
+    grid-template-columns: 52px repeat(7, 1fr);
+    overflow-y: auto;
+    flex: 1;
+    max-height: 620px;
+  }
+  .cal-gutter {
+    position: relative;
+    background: var(--surface);
+    border-right: 1px solid var(--border-strong);
+    flex-shrink: 0;
+  }
+  .time-label {
+    position: absolute;
+    right: 6px;
+    font-size: 10px;
+    color: var(--text-3);
+    font-family: 'DM Mono', monospace;
+    transform: translateY(-50%);
+    white-space: nowrap;
+    background: var(--surface);
+  }
+  .cal-day-col {
+    position: relative;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .cal-day-col.today { background: #FAFBFF; }
+  .hour-line {
+    position: absolute;
+    left: 0; right: 0;
+    border-top: 1px solid var(--border);
+    pointer-events: none;
+  }
+  .hour-line.half { border-top-style: dashed; opacity: 0.4; }
+  .task-slot {
+    position: absolute;
+    left: 3px; right: 3px;
+    pointer-events: all;
+    z-index: 2;
+  }
+  .add-day-btn {
+    position: absolute;
+    bottom: 6px; left: 3px; right: 3px;
+    padding: 4px;
+    background: none; border: 1px dashed var(--border);
+    border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 10px; color: var(--text-3);
+    transition: all .15s; font-family: 'DM Sans', sans-serif;
+    z-index: 3;
+  }
+  .add-day-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  /* ── TASK CARD ── */
+  .task-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 7px;
+    cursor: pointer;
+    transition: all .15s;
+    border-left: 3px solid var(--accent);
+    height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .task-card:hover { box-shadow: var(--shadow); border-color: var(--border-strong); }
+  .task-card.prio-high { border-left-color: var(--red); background: #FFF8F8; }
+  .task-card.prio-medium { border-left-color: var(--amber); background: #FFFDF5; }
+  .task-card.prio-low { border-left-color: var(--green); background: #F5FDF9; }
+  .task-card.gcal-event {
+    border-left-color: var(--google);
+    background: #FFF5F5;
+    cursor: default;
+  }
+  .task-card.done { opacity: 0.5; }
+  .task-card.done .task-title { text-decoration: line-through; }
+
+  .task-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .task-title { font-size: 12px; font-weight: 500; line-height: 1.4; flex: 1; }
+  .task-check {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    background: none; cursor: pointer;
+    flex-shrink: 0; margin-top: 1px;
+    transition: all .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .task-check:hover { border-color: var(--accent); }
+  .task-check.checked { background: var(--green); border-color: var(--green); }
+  .task-check.checked::after { content: '✓'; color: white; font-size: 9px; }
+
+  .task-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .tag {
+    font-size: 10px; font-weight: 500;
+    padding: 2px 6px; border-radius: 4px;
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .tag-client { background: var(--accent-light); color: var(--accent-text); }
+  .tag-revenue { background: var(--green-light); color: var(--green-text); font-family: 'DM Mono', monospace; }
+  .tag-hours { background: var(--bg); color: var(--text-2); }
+  .tag-deadline { background: var(--red-light); color: var(--red); }
+  .tag-gcal { background: #FEF2F2; color: var(--google); }
+  .tag-time { background: var(--bg); color: var(--text-2); font-family: 'DM Mono', monospace; }
+
+  .add-task-btn {
+    width: 100%; padding: 6px;
+    background: none; border: 1px dashed var(--border);
+    border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 11px; color: var(--text-3);
+    transition: all .15s; font-family: 'DM Sans', sans-serif;
+    margin-top: auto;
+  }
+  .add-task-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 14px;
+    width: 480px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp .2s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 20px 0;
+  }
+  .modal-title { font-size: 16px; font-weight: 500; }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    font-size: 20px; color: var(--text-3); line-height: 1;
+    padding: 4px; border-radius: 6px; transition: all .15s;
+  }
+  .modal-close:hover { background: var(--bg); color: var(--text); }
+
+  .modal-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; font-weight: 500; color: var(--text-2); }
+  .field input, .field textarea, .field select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color .15s;
+    outline: none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+  }
+  .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .prio-btns { display: flex; gap: 6px; }
+  .prio-btn {
+    flex: 1; padding: 6px 8px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: none; cursor: pointer; font-size: 12px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif; transition: all .15s; color: var(--text-2);
+  }
+  .prio-btn:hover { border-color: var(--border-strong); }
+  .prio-btn.sel-high { background: var(--red-light); border-color: var(--red); color: var(--red); }
+  .prio-btn.sel-medium { background: var(--amber-light); border-color: var(--amber); color: var(--amber); }
+  .prio-btn.sel-low { background: var(--green-light); border-color: var(--green); color: var(--green-text); }
+
+  .modal-footer {
+    padding: 0 20px 20px;
+    display: flex; gap: 8px; justify-content: flex-end;
+  }
+  .btn-cancel {
+    background: none; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 16px;
+    font-size: 13px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; color: var(--text-2); transition: all .15s;
+  }
+  .btn-cancel:hover { background: var(--bg); }
+  .btn-save {
+    background: var(--accent); border: none;
+    border-radius: var(--radius-sm); padding: 8px 20px;
+    font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; color: white; transition: all .15s;
+  }
+  .btn-save:hover { background: #1D4ED8; }
+  .btn-delete {
+    background: none; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 14px;
+    font-size: 13px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; color: var(--red); transition: all .15s;
+    margin-right: auto;
+  }
+  .btn-delete:hover { background: var(--red-light); border-color: var(--red); }
+
+  /* ── GOOGLE MODAL ── */
+  .gcal-modal {
+    background: var(--surface);
+    border-radius: 14px;
+    width: 420px;
+    max-width: 95vw;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp .2s ease;
+    padding: 24px;
+  }
+  .gcal-steps { display: flex; flex-direction: column; gap: 16px; margin: 16px 0; }
+  .gcal-step { display: flex; gap: 12px; align-items: flex-start; }
+  .step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: white;
+    font-size: 11px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-text { font-size: 13px; color: var(--text-2); line-height: 1.5; padding-top: 2px; }
+  .step-text strong { color: var(--text); font-weight: 500; }
+  .gcal-input-row { display: flex; gap: 8px; margin-top: 4px; }
+  .gcal-input-row input {
+    flex: 1; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 7px 10px;
+    font-size: 12px; font-family: 'DM Mono', monospace;
+    outline: none; color: var(--text); background: var(--bg);
+  }
+  .gcal-input-row input:focus { border-color: var(--accent); background: var(--surface); }
+  .btn-connect {
+    background: var(--accent); border: none;
+    border-radius: var(--radius-sm); padding: 7px 14px;
+    font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; color: white; white-space: nowrap;
+  }
+  .gcal-note {
+    font-size: 11px; color: var(--text-3);
+    background: var(--bg); border-radius: var(--radius-sm);
+    padding: 10px 12px; line-height: 1.5; margin-top: 4px;
+  }
+  .demo-banner {
+    background: var(--amber-light);
+    border: 1px solid #FDE68A;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--amber);
+    font-weight: 500;
+    text-align: center;
+    margin: 0 16px 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">dag<span>plan</span></div>
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)">&#8249;</button>
+      <div class="week-label" id="weekLabel"></div>
+      <button onclick="changeWeek(1)">&#8250;</button>
+      <button class="btn-today" onclick="goToToday()">Vandaag</button>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="gcal-btn" onclick="openGcalModal()" id="gcalBtn">
+      <div class="gcal-dot" id="gcalDot"></div>
+      <span id="gcalBtnLabel">Google Agenda</span>
+    </button>
+    <button class="sync-btn" id="syncBtn" onclick="syncGcal()">↺ Sync</button>
+  </div>
+</header>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-label">Taken deze week</div>
+    <div class="stat-value" id="statTasks">0</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-label">Omzet gepland</div>
+    <div class="stat-value green" id="statRevenue">€0</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-label">Uren ingepland</div>
+    <div class="stat-value amber" id="statHours">0u</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-label">Deadlines deze week</div>
+    <div class="stat-value" id="statDeadlines">0</div>
+  </div>
+</div>
+
+<div class="demo-banner" id="demoBanner">
+  Demo-modus — koppel Google Agenda voor live afspraken. Taken worden lokaal opgeslagen.
+</div>
+
+<!-- CALENDAR -->
+<div class="calendar-outer">
+  <div class="cal-head" id="calHead">
+    <div class="cal-head-gutter"></div>
+  </div>
+  <div class="cal-body" id="calBody">
+    <div class="cal-gutter" id="calGutter"></div>
+  </div>
+</div>
+
+<!-- TASK MODAL -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Nieuwe taak</div>
+      <button class="modal-close" onclick="closeTaskModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Taaknaam *</label>
+        <input type="text" id="fTitle" placeholder="Bijv. Offerte schrijven" />
+      </div>
+      <div class="field">
+        <label>Omschrijving</label>
+        <textarea id="fDesc" placeholder="Details over de taak..."></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Klantnaam</label>
+          <input type="text" id="fClient" placeholder="Bijv. Acme BV" />
+        </div>
+        <div class="field">
+          <label>Omzet (€)</label>
+          <input type="number" id="fRevenue" placeholder="0" min="0" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Geschatte uren</label>
+          <input type="number" id="fHours" placeholder="0" min="0" step="0.5" />
+        </div>
+        <div class="field">
+          <label>Deadline</label>
+          <input type="date" id="fDeadline" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Starttijd</label>
+          <input type="time" id="fTimeStart" />
+        </div>
+        <div class="field">
+          <label>Eindtijd</label>
+          <input type="time" id="fTimeEnd" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Prioriteit</label>
+        <div class="prio-btns">
+          <button class="prio-btn" data-prio="high" onclick="selectPrio(this)">Hoog</button>
+          <button class="prio-btn" data-prio="medium" onclick="selectPrio(this)">Middel</button>
+          <button class="prio-btn" data-prio="low" onclick="selectPrio(this)">Laag</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-delete" id="btnDelete" onclick="deleteTask()" style="display:none">Verwijderen</button>
+      <button class="btn-cancel" onclick="closeTaskModal()">Annuleren</button>
+      <button class="btn-save" onclick="saveTask()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- GCAL MODAL -->
+<div class="modal-overlay" id="gcalModal">
+  <div class="gcal-modal">
+    <div class="modal-header" style="padding:0 0 16px;">
+      <div class="modal-title">Google Agenda koppelen</div>
+      <button class="modal-close" onclick="closeGcalModal()">×</button>
+    </div>
+    <div class="gcal-steps">
+      <div class="gcal-step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          Open een nieuw tabblad en ga naar:<br>
+          <strong style="font-size:11px;word-break:break-all;">https://calendar.google.com/calendar/ical/info%40enerva.eu/public/basic.ics</strong>
+        </div>
+      </div>
+      <div class="gcal-step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          Je ziet een pagina vol tekst die begint met <em>BEGIN:VCALENDAR</em>. Selecteer alles met <strong>&#8984;A</strong> en kopieer met <strong>&#8984;C</strong>.
+        </div>
+      </div>
+      <div class="gcal-step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          Plak de gekopieerde tekst hieronder en klik Importeren:
+          <div style="margin-top:8px;">
+            <textarea id="gcalIcalText" placeholder="BEGIN:VCALENDAR&#10;VERSION:2.0&#10;..." style="width:100%;height:80px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:11px;font-family:'DM Mono',sans-serif;outline:none;color:var(--text);background:var(--bg);resize:none;box-sizing:border-box;"></textarea>
+            <button class="btn-connect" onclick="connectIcal()" style="margin-top:6px;width:100%;">Importeren</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="gcal-note">
+      Je agenda-gegevens worden lokaal opgeslagen. Herhaal dit om je agenda te vernieuwen.
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+      <button class="btn-cancel" onclick="loadDemoEvents()">Demo laden</button>
+      <button class="btn-cancel" onclick="closeGcalModal()">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+const MONTHS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+let currentWeekOffset = 0;
+let tasks = JSON.parse(localStorage.getItem('dagplan_tasks') || '[]');
+let gcalEvents = JSON.parse(localStorage.getItem('dagplan_gcal') || '[]');
+let editingId = null;
+let editingDay = null;
+let selectedPrio = 'medium';
+let gcalConnected = localStorage.getItem('dagplan_gcal_connected') === 'true';
+
+function getWeekDates(offset = 0) {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7);
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function dateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+function isToday(date) {
+  return dateKey(date) === dateKey(new Date());
+}
+
+function formatDate(date) {
+  return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+}
+
+const HOUR_HEIGHT = 56;
+const DAY_START = 7;
+const DAY_END = 22;
+const TOTAL_HOURS = DAY_END - DAY_START;
+
+function timeToY(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return ((h - DAY_START) + m / 60) * HOUR_HEIGHT;
+}
+
+function renderWeek() {
+  const dates = getWeekDates(currentWeekOffset);
+  document.getElementById('weekLabel').textContent =
+    `${formatDate(dates[0])} – ${formatDate(dates[6])} ${dates[6].getFullYear()}`;
+
+  const totalH = TOTAL_HOURS * HOUR_HEIGHT;
+
+  // ── Build gutter (time labels + hour lines height reference)
+  const gutter = document.getElementById('calGutter');
+  gutter.style.height = totalH + 'px';
+  gutter.innerHTML = '';
+  for (let h = DAY_START; h <= DAY_END; h++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'time-label';
+    lbl.style.top = ((h - DAY_START) * HOUR_HEIGHT) + 'px';
+    lbl.textContent = String(h).padStart(2,'0') + ':00';
+    gutter.appendChild(lbl);
+  }
+
+  // ── Build header row (keep gutter cell, rebuild day cells)
+  const head = document.getElementById('calHead');
+  while (head.children.length > 1) head.removeChild(head.lastChild);
+  dates.forEach((date, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cal-head-day' + (isToday(date) ? ' today' : '');
+    cell.innerHTML = `<div class="day-name">${DAYS[i]}</div><div class="day-date">${date.getDate()}</div>`;
+    head.appendChild(cell);
+  });
+
+  // ── Build day columns (remove old ones first)
+  const body = document.getElementById('calBody');
+  // Remove all children except the gutter
+  while (body.children.length > 1) body.removeChild(body.lastChild);
+
+  dates.forEach((date) => {
+    const key = dateKey(date);
+    const dayTasks = tasks.filter(t => t.day === key);
+    const dayEvents = gcalEvents.filter(e => e.day === key);
+
+    const col = document.createElement('div');
+    col.className = 'cal-day-col' + (isToday(date) ? ' today' : '');
+    col.style.height = totalH + 'px';
+
+    // Hour + half-hour lines
+    for (let h = DAY_START; h <= DAY_END; h++) {
+      const line = document.createElement('div');
+      line.className = 'hour-line';
+      line.style.top = ((h - DAY_START) * HOUR_HEIGHT) + 'px';
+      col.appendChild(line);
+      if (h < DAY_END) {
+        const half = document.createElement('div');
+        half.className = 'hour-line half';
+        half.style.top = ((h - DAY_START + 0.5) * HOUR_HEIGHT) + 'px';
+        col.appendChild(half);
+      }
+    }
+
+    // Google Calendar events
+    dayEvents.forEach(e => {
+      const el = document.createElement('div');
+      el.className = 'task-slot';
+      const times = e.time && e.time.includes('–') ? e.time.split('–') : null;
+      if (times && times.length === 2) {
+        const y = Math.max(0, timeToY(times[0]));
+        const y2 = Math.max(y + 22, timeToY(times[1]));
+        el.style.top = y + 'px';
+        el.style.height = (y2 - y) + 'px';
+      } else {
+        el.style.top = '4px';
+        el.style.height = '28px';
+      }
+      el.innerHTML = renderGcalEvent(e);
+      col.appendChild(el);
+    });
+
+    // Tasks — timed ones positioned, untimed stacked at top
+    let untimedOffset = 4;
+    dayTasks.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'task-slot';
+      if (t.timeStart) {
+        const y = Math.max(0, timeToY(t.timeStart));
+        const y2 = t.timeEnd ? Math.max(y + 22, timeToY(t.timeEnd)) : y + 48;
+        el.style.top = y + 'px';
+        el.style.height = (y2 - y) + 'px';
+      } else {
+        el.style.top = untimedOffset + 'px';
+        el.style.height = '44px';
+        untimedOffset += 48;
+      }
+      el.innerHTML = renderTaskCard(t);
+      col.appendChild(el);
+    });
+
+    // Add task button
+    const btn = document.createElement('button');
+    btn.className = 'add-day-btn';
+    btn.textContent = '+ Taak';
+    btn.onclick = () => openNewTask(key);
+    col.appendChild(btn);
+
+    body.appendChild(col);
+  });
+
+  // Scroll to 08:00 on first load
+  if (body.scrollTop === 0) {
+    body.scrollTop = HOUR_HEIGHT;
+  }
+
+  updateStats(dates);
+}
+
+
+function renderTaskCard(task) {
+  const deadline = task.deadline ? new Date(task.deadline + 'T00:00:00') : null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const isOverdue = deadline && deadline < today && !task.done;
+
+  return `<div class="task-card prio-${task.priority || 'medium'} ${task.done ? 'done' : ''}"
+    onclick="openEditTask('${task.id}')">
+    <div class="task-top">
+      <div class="task-title">${task.title}</div>
+      <div class="task-check ${task.done ? 'checked' : ''}"
+        onclick="event.stopPropagation();toggleDone('${task.id}')"></div>
+    </div>
+    <div class="task-meta">
+      ${task.client ? `<span class="tag tag-client">${task.client}</span>` : ''}
+      ${task.revenue ? `<span class="tag tag-revenue">€${Number(task.revenue).toLocaleString('nl-NL')}</span>` : ''}
+      ${task.hours ? `<span class="tag tag-hours">${task.hours}u</span>` : ''}
+      ${task.timeStart ? `<span class="tag tag-time">${task.timeStart}${task.timeEnd ? '–'+task.timeEnd : ''}</span>` : ''}
+      ${task.deadline ? `<span class="tag tag-deadline" style="${isOverdue ? 'background:#FEE2E2' : ''}">${formatDeadline(task.deadline)}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+// Store custom gcal titles (user can rename Busy events)
+let gcalCustomTitles = JSON.parse(localStorage.getItem('dagplan_gcal_titles') || '{}');
+
+function renderGcalEvent(event) {
+  const isBusy = event.title === '(Afspraak)' || event.title === 'Busy';
+  const customTitle = gcalCustomTitles[event.id];
+  const displayTitle = customTitle || (isBusy ? '' : event.title);
+  const placeholder = isBusy ? 'Naam afspraak...' : event.title;
+  return `<div class="task-card gcal-event" style="height:100%;overflow:hidden;padding:4px 6px;">
+    <input
+      class="gcal-title-input"
+      value="${displayTitle}"
+      placeholder="${placeholder}"
+      style="width:100%;background:none;border:none;outline:none;font-size:11px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;padding:0;cursor:text;"
+      onclick="event.stopPropagation()"
+      onchange="saveGcalTitle('${event.id}', this.value)"
+    />
+    ${event.time ? `<div style="font-size:10px;color:var(--google);margin-top:2px;font-family:'DM Mono',monospace;">${event.time}</div>` : ''}
+    ${event.location ? `<div style="font-size:10px;color:var(--text-2);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${event.location}</div>` : ''}
+  </div>`;
+}
+
+function saveGcalTitle(id, title) {
+  gcalCustomTitles[id] = title;
+  localStorage.setItem('dagplan_gcal_titles', JSON.stringify(gcalCustomTitles));
+}
+
+function formatDeadline(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+function updateStats(dates) {
+  const keys = dates.map(d => dateKey(d));
+  const weekTasks = tasks.filter(t => keys.includes(t.day) && !t.done);
+  const revenue = weekTasks.reduce((s, t) => s + (Number(t.revenue) || 0), 0);
+  const hours = weekTasks.reduce((s, t) => s + (Number(t.hours) || 0), 0);
+  const deadlines = weekTasks.filter(t => t.deadline && keys.includes(t.deadline)).length;
+
+  document.getElementById('statTasks').textContent = weekTasks.length;
+  document.getElementById('statRevenue').textContent = `€${revenue.toLocaleString('nl-NL')}`;
+  document.getElementById('statHours').textContent = `${hours}u`;
+  document.getElementById('statDeadlines').textContent = deadlines;
+}
+
+function changeWeek(dir) {
+  currentWeekOffset += dir;
+  renderWeek();
+}
+
+function goToToday() {
+  currentWeekOffset = 0;
+  renderWeek();
+}
+
+function openNewTask(dayKey) {
+  editingId = null;
+  editingDay = dayKey;
+  selectedPrio = 'medium';
+  document.getElementById('modalTitle').textContent = 'Nieuwe taak';
+  document.getElementById('btnDelete').style.display = 'none';
+  clearForm();
+  document.querySelectorAll('.prio-btn').forEach(b => b.className = 'prio-btn');
+  document.querySelector('[data-prio="medium"]').classList.add('sel-medium');
+  document.getElementById('taskModal').classList.add('open');
+  setTimeout(() => document.getElementById('fTitle').focus(), 50);
+}
+
+function openEditTask(id) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  editingId = id;
+  editingDay = task.day;
+  selectedPrio = task.priority || 'medium';
+  document.getElementById('modalTitle').textContent = 'Taak bewerken';
+  document.getElementById('btnDelete').style.display = 'block';
+  document.getElementById('fTitle').value = task.title || '';
+  document.getElementById('fDesc').value = task.description || '';
+  document.getElementById('fClient').value = task.client || '';
+  document.getElementById('fRevenue').value = task.revenue || '';
+  document.getElementById('fHours').value = task.hours || '';
+  document.getElementById('fDeadline').value = task.deadline || '';
+  document.getElementById('fTimeStart').value = task.timeStart || '';
+  document.getElementById('fTimeEnd').value = task.timeEnd || '';
+  document.querySelectorAll('.prio-btn').forEach(b => b.className = 'prio-btn');
+  const prioBtn = document.querySelector(`[data-prio="${selectedPrio}"]`);
+  if (prioBtn) prioBtn.classList.add(`sel-${selectedPrio}`);
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function closeTaskModal() {
+  document.getElementById('taskModal').classList.remove('open');
+}
+
+function clearForm() {
+  ['fTitle','fDesc','fClient','fRevenue','fHours','fDeadline','fTimeStart','fTimeEnd'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+function selectPrio(btn) {
+  selectedPrio = btn.dataset.prio;
+  document.querySelectorAll('.prio-btn').forEach(b => b.className = 'prio-btn');
+  btn.classList.add(`sel-${selectedPrio}`);
+}
+
+function saveTask() {
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) { document.getElementById('fTitle').focus(); return; }
+
+  const task = {
+    id: editingId || `t_${Date.now()}`,
+    day: editingDay,
+    title,
+    description: document.getElementById('fDesc').value.trim(),
+    client: document.getElementById('fClient').value.trim(),
+    revenue: document.getElementById('fRevenue').value,
+    hours: document.getElementById('fHours').value,
+    deadline: document.getElementById('fDeadline').value,
+    timeStart: document.getElementById('fTimeStart').value,
+    timeEnd: document.getElementById('fTimeEnd').value,
+    priority: selectedPrio,
+    done: editingId ? (tasks.find(t => t.id === editingId) || {}).done : false,
+  };
+
+  if (editingId) {
+    tasks = tasks.map(t => t.id === editingId ? task : t);
+  } else {
+    tasks.push(task);
+  }
+
+  localStorage.setItem('dagplan_tasks', JSON.stringify(tasks));
+  closeTaskModal();
+  renderWeek();
+}
+
+function deleteTask() {
+  if (!editingId) return;
+  tasks = tasks.filter(t => t.id !== editingId);
+  localStorage.setItem('dagplan_tasks', JSON.stringify(tasks));
+  closeTaskModal();
+  renderWeek();
+}
+
+function toggleDone(id) {
+  tasks = tasks.map(t => t.id === id ? {...t, done: !t.done} : t);
+  localStorage.setItem('dagplan_tasks', JSON.stringify(tasks));
+  renderWeek();
+}
+
+// ── GCAL via iCal ──
+function openGcalModal() {
+  const saved = localStorage.getItem('dagplan_ical_url') || '';
+  document.getElementById('gcalIcalUrl').value = saved;
+  document.getElementById('gcalModal').classList.add('open');
+}
+function closeGcalModal() {
+  document.getElementById('gcalModal').classList.remove('open');
+}
+
+function connectIcal() {
+  const text = document.getElementById('gcalIcalText').value.trim();
+  if (!text) { alert('Plak eerst de agenda-tekst in het veld.'); return; }
+  if (!text.includes('BEGIN:VCALENDAR')) { alert('Dit lijkt geen geldige agenda-tekst. Zorg dat je de volledige pagina kopieert (begint met BEGIN:VCALENDAR).'); return; }
+  parseIcal(text);
+  localStorage.setItem('dagplan_gcal_connected', 'true');
+  gcalConnected = true;
+  updateGcalUI();
+  closeGcalModal();
+  renderWeek();
+}
+
+async function fetchIcal(url) {
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+  ];
+  let lastErr = "";
+  for (const proxyUrl of proxies) {
+    try {
+      const res = await fetch(proxyUrl);
+      if (!res.ok) { lastErr = `HTTP ${res.status}`; continue; }
+      const text = await res.text();
+      if (!text.includes("BEGIN:VCALENDAR")) { lastErr = "Geen agenda data"; continue; }
+      parseIcal(text);
+      localStorage.setItem("dagplan_gcal_connected", "true");
+      gcalConnected = true;
+      updateGcalUI();
+      closeGcalModal();
+      renderWeek();
+      return;
+    } catch(e) { lastErr = e.message; }
+  }
+  alert("Kon de agenda niet laden (" + lastErr + ").\n\nControleer:\nu2022 Staat je agenda op Openbaar?\nu2022 Is de URL de \"Openbare URL in iCal-indeling\"?\nu2022 Ben je verbonden met internet?\n\nKlik \"Demo laden\" om de tool te testen zonder koppeling.");
+}
+
+function parseIcal(text) {
+  const events = [];
+  // Unfold iCal lines (lines ending with CRLF + space/tab are continuations)
+  const unfolded = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
+  const blocks = unfolded.split('BEGIN:VEVENT');
+  blocks.shift();
+  for (const block of blocks) {
+    const get = (key) => {
+      const match = block.match(new RegExp(key + '(?:;[^:\r\n]*)?:([^\r\n]+)'));
+      return match ? match[1].replace(/\r/g, '').trim() : '';
+    };
+    const rawTitle = get('SUMMARY');
+    const title = rawTitle && rawTitle !== 'Busy' ? rawTitle : '(Afspraak)';
+    const location = get('LOCATION') || '';
+    const dtstart = get('DTSTART');
+    const dtend   = get('DTEND');
+    if (!dtstart) continue;
+
+    // Strip any TZID prefix from value e.g. DTSTART;TZID=Europe/Amsterdam:20260401T100000
+    const cleanStart = dtstart.replace(/^[^:]*:/, '').trim();
+    const cleanEnd   = dtend ? dtend.replace(/^[^:]*:/, '').trim() : '';
+
+    let day = '', time = '';
+    if (cleanStart.length === 8) {
+      day = `${cleanStart.slice(0,4)}-${cleanStart.slice(4,6)}-${cleanStart.slice(6,8)}`;
+      time = 'Hele dag';
+    } else {
+      // Parse date parts directly from string to avoid timezone shifting
+      const parseLocal = (s) => {
+        // Strip Z to treat as local time, or parse TZID times as-is
+        const clean = s.replace('Z','');
+        const m = clean.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
+        if (!m) return null;
+        // Use local date constructor to avoid UTC offset issues
+        return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]);
+      };
+      const d = parseLocal(cleanStart);
+      if (!d) continue;
+      day = dateKey(d);
+      const dEnd = cleanEnd ? parseLocal(cleanEnd) : null;
+      time = d.toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'});
+      if (dEnd) time += '–' + dEnd.toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'});
+    }
+    events.push({ id: 'ical_' + Math.random(), title, day, time, location });
+  }
+  gcalEvents = events;
+  localStorage.setItem('dagplan_gcal', JSON.stringify(gcalEvents));
+}
+
+function syncGcal() {
+  const url = localStorage.getItem('dagplan_ical_url');
+  if (url) fetchIcal(url);
+  else openGcalModal();
+}
+
+function loadDemoEvents() {
+  const dates = getWeekDates(currentWeekOffset);
+  gcalEvents = [
+    { id: 'demo1', title: 'Klantgesprek Meubelzaak', day: dateKey(dates[0]), time: '10:00–11:00' },
+    { id: 'demo2', title: 'Teamoverleg', day: dateKey(dates[1]), time: '14:00–15:30' },
+    { id: 'demo3', title: 'Workshop fotografie', day: dateKey(dates[2]), time: '09:00–12:00' },
+    { id: 'demo4', title: 'Lunch met partner', day: dateKey(dates[3]), time: '12:30–13:30' },
+    { id: 'demo5', title: 'Accountant', day: dateKey(dates[4]), time: '16:00–17:00' },
+  ];
+  localStorage.setItem('dagplan_gcal', JSON.stringify(gcalEvents));
+  closeGcalModal();
+  renderWeek();
+}
+
+function updateGcalUI() {
+  if (gcalConnected) {
+    document.getElementById('gcalDot').classList.add('connected');
+    document.getElementById('gcalBtnLabel').textContent = 'Agenda gekoppeld';
+    document.getElementById('syncBtn').classList.add('visible');
+    document.getElementById('demoBanner').style.display = 'none';
+  }
+}
+
+// Close modals on overlay click
+document.getElementById('taskModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('taskModal')) closeTaskModal();
+});
+document.getElementById('gcalModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('gcalModal')) closeGcalModal();
+});
+
+// Init
+updateGcalUI();
+renderWeek();
+</script>
+</body>
+</html>
